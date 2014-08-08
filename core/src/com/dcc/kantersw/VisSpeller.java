@@ -60,13 +60,18 @@ public class VisSpeller extends ApplicationAdapter {
 		float gridHeight = height * (900f / 1080f);
 		float rowColumnSize = height * (180f / 1080f);
 
+		// Grabbing the grid texture.
 		Texture gridTexture = new Texture("grid.png");
 
 		for (int i = 0; i < 6; i++) {
+			// Get a subregion from the entire grid texture
 			TextureRegion texture = new TextureRegion(gridTexture, 0 + i * 180,
 					0, 180, 900);
+			// Create a sprite using the subregion
 			columns[i] = new Sprite(texture);
+			// Change the size so it fits the screen properly
 			columns[i].setSize(rowColumnSize, gridHeight);
+			// Set the position of this column
 			columns[i].setPosition(width / 2 - gridWidth / 2 + i
 					* rowColumnSize, height / 2 - gridHeight / 2);
 		}
@@ -109,6 +114,7 @@ public class VisSpeller extends ApplicationAdapter {
 
 	@Override
 	public void render() {
+		// Logs the fps. Prints it once per second to the console.
 		fpslogger.log();
 
 		// Add flashes if necessary
@@ -143,8 +149,11 @@ public class VisSpeller extends ApplicationAdapter {
 			if (flash) {
 				// Draw part of the grid
 				int index = currentFlashes.remove(0);
+				// Determine if it is a column or row flash
 				if (ISCOLUMNFLASH[index]) {
 					for (int i = 0; i < 6; i++) {
+						// Draw the column if it is't
+						// flashing.
 						if (i != NUMBERFLASH[index]) {
 							columns[i].draw(batch);
 						}
