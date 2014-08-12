@@ -6,6 +6,7 @@ import java.util.Collections;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
@@ -20,25 +21,31 @@ import com.badlogic.gdx.utils.TimeUtils;
 
 public class VisSpeller extends ApplicationAdapter {
 
+	private enum States {
+		ESTABLISH_BUFFER_CONNECTION, TRAINING_TEXT, CUE, FLASHING_GRID, FEEDBACK_TEXT, FEEDBACK
+	}
+
+	private States state = States.ESTABLISH_BUFFER_CONNECTION;
+
+	// GRAPHICS RELATED VARIABLES
 	private SpriteBatch batch;
 	private BitmapFont font;
+	private Sprite[][] grid = new Sprite[6][5];
+	private Sprite[][] gridGreen = new Sprite[6][5];
+	private Sprite[][] gridRed = new Sprite[6][5];
 
-	private Sprite[] columns = new Sprite[6];
-	private Sprite[] rows = new Sprite[5];
+	// GRID FLASH RELATED VARIABLES
+	private final static boolean[] ISCOLUMNFLASH = { true, true, true, true,
+		true, true, false, false, false, false, false };
+	private final static int[] NUMBERFLASH = { 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4 };
+	private final static int[] FLASHINDICES = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+		10 };
+	private ArrayList<Integer> currentFlashes = new ArrayList<Integer>();
+	private long lastStateTime;
 
 	private static final String TITLE = "Visual Speller";
 	private float titleX;
 	private float titleY;
-
-	private final static boolean[] ISCOLUMNFLASH = { true, true, true, true,
-			true, true, false, false, false, false, false };
-	private final static int[] NUMBERFLASH = { 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4 };
-	private final static int[] FLASHINDICES = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-			10 };
-
-	private ArrayList<Integer> currentFlashes = new ArrayList<Integer>();
-
-	private long lastFlashTime;
 
 	private FPSLogger fpslogger;
 
@@ -63,26 +70,32 @@ public class VisSpeller extends ApplicationAdapter {
 		// Grabbing the grid texture.
 		Texture gridTexture = new Texture("grid.png");
 
-		for (int i = 0; i < 6; i++) {
-			// Get a subregion from the entire grid texture
-			TextureRegion texture = new TextureRegion(gridTexture, 0 + i * 180,
-					0, 180, 900);
-			// Create a sprite using the subregion
-			columns[i] = new Sprite(texture);
-			// Change the size so it fits the screen properly
-			columns[i].setSize(rowColumnSize, gridHeight);
-			// Set the position of this column
-			columns[i].setPosition(width / 2 - gridWidth / 2 + i
-					* rowColumnSize, height / 2 - gridHeight / 2);
-		}
+		// Create grid sprites
+		for (int x = 0; x < 6; x++) {
+			for (int y = 0; y < 5; y++) {
+				TextureRegion texture = new TextureRegion(gridTexture,
+						0 + x * 180, 720 - y * 180, 180, 180);
+				grid[x][y] = new Sprite(texture);
+				grid[x][y].setSize(rowColumnSize, rowColumnSize);
+				grid[x][y].setPosition(width / 2 - gridWidth / 2 + x
+						* rowColumnSize, height / 2 - gridHeight / 2 + y
+						* rowColumnSize);
 
-		for (int i = 0; i < 5; i++) {
-			TextureRegion texture = new TextureRegion(gridTexture, 0,
-					720 - i * 180, 1080, 180);
-			rows[i] = new Sprite(texture);
-			rows[i].setSize(gridWidth, rowColumnSize);
-			rows[i].setPosition(width / 2 - gridWidth / 2, height / 2
-					- gridHeight / 2 + i * rowColumnSize);
+				gridRed[x][y] = new Sprite(texture);
+				gridRed[x][y].setSize(rowColumnSize, rowColumnSize);
+				gridRed[x][y].setPosition(width / 2 - gridWidth / 2 + x
+						* rowColumnSize, height / 2 - gridHeight / 2 + y
+						* rowColumnSize);
+				gridRed[x][y].setColor(Color.RED);
+
+				gridGreen[x][y] = new Sprite(texture);
+				gridGreen[x][y].setSize(rowColumnSize, rowColumnSize);
+				gridGreen[x][y].setPosition(width / 2 - gridWidth / 2 + x
+						* rowColumnSize, height / 2 - gridHeight / 2 + y
+						* rowColumnSize);
+				gridGreen[x][y].setColor(Color.GREEN);
+
+			}
 		}
 
 		// Generate a BitmapFont based on a freetype Ubuntu font.
@@ -99,7 +112,7 @@ public class VisSpeller extends ApplicationAdapter {
 		titleY = height - titleBounds.height;
 
 		// Set the current time as lastFlashTime
-		lastFlashTime = TimeUtils.millis();
+		lastStateTime = TimeUtils.millis();
 
 		// Create a fps logger
 		fpslogger = new FPSLogger();
@@ -117,6 +130,18 @@ public class VisSpeller extends ApplicationAdapter {
 		// Logs the fps. Prints it once per second to the console.
 		fpslogger.log();
 
+		render_stimulus();
+
+		// Exit if escape key is pressed or touch screen is touched
+		if (Gdx.input.isKeyPressed(Keys.ESCAPE) || Gdx.input.isTouched()) {
+			Gdx.app.exit();
+		}
+	}
+
+	public void render_stimulus() {
+		// Determine if this is a flashing frame
+		long timeSinceLastFlash = TimeUtils.millis() - lastStateTime;
+
 		// Add flashes if necessary
 		if (currentFlashes.size() == 0) {
 			for (int index : FLASHINDICES) {
@@ -125,16 +150,7 @@ public class VisSpeller extends ApplicationAdapter {
 			Collections.shuffle(currentFlashes);
 		}
 
-		// Determine if this is a flashing frame
-		long timeSinceLastFlash = TimeUtils.millis() - lastFlashTime;
-
 		boolean flash = timeSinceLastFlash > 80;
-
-		// Determine if flash has passed
-		if (timeSinceLastFlash >= 100) {
-			lastFlashTime = TimeUtils.millis();
-		}
-
 		// Clear the screen
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -151,24 +167,28 @@ public class VisSpeller extends ApplicationAdapter {
 				int index = currentFlashes.remove(0);
 				// Determine if it is a column or row flash
 				if (ISCOLUMNFLASH[index]) {
-					for (int i = 0; i < 6; i++) {
-						// Draw the column if it is't
-						// flashing.
-						if (i != NUMBERFLASH[index]) {
-							columns[i].draw(batch);
+					for (int x = 0; x < 6; x++) {
+						if (NUMBERFLASH[index] != x) {
+							for (int y = 0; y < 5; y++) {
+								gridGreen[x][y].draw(batch);
+							}
 						}
 					}
 				} else {
-					for (int i = 0; i < 5; i++) {
-						if (i != NUMBERFLASH[index]) {
-							rows[i].draw(batch);
+					for (int y = 0; y < 5; y++) {
+						if (NUMBERFLASH[index] != y) {
+							for (int x = 0; x < 6; x++) {
+								gridRed[x][y].draw(batch);
+							}
 						}
 					}
 				}
 			} else {
 				// Draw the whole grid
-				for (Sprite s : rows) {
-					s.draw(batch);
+				for (int x = 0; x < 6; x++) {
+					for (int y = 0; y < 5; y++) {
+						grid[x][y].draw(batch);
+					}
 				}
 			}
 
@@ -182,9 +202,10 @@ public class VisSpeller extends ApplicationAdapter {
 		// Stop drawing
 		batch.end();
 
-		// Exit if escape key is pressed or touch screen is touched
-		if (Gdx.input.isKeyPressed(Keys.ESCAPE) || Gdx.input.isTouched()) {
-			Gdx.app.exit();
+		// Determine if flash has passed
+		if (timeSinceLastFlash >= 100) {
+			lastStateTime = TimeUtils.millis();
 		}
+
 	}
 }
