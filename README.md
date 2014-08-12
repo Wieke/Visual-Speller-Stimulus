@@ -54,3 +54,8 @@ Feedback:
 		
 	send event stimulus.feed with value end
 ```
+
+State Diagram
+=============
+
+![Program/Experiment state diagram](https://raw.githubusercontent.com/Wieke/Visual-Speller-Stimulus/master/doc/program_states.png)
