@@ -13,6 +13,7 @@ import nl.fcdonders.fieldtrip.Header;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.Input.TextInputListener;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.FPSLogger;
@@ -29,8 +30,29 @@ import com.badlogic.gdx.utils.TimeUtils;
 
 public class VisSpeller extends ApplicationAdapter {
 
+	public class AdressListener implements TextInputListener {
+		@Override
+		public void canceled() {
+			adress = "127.0.0.1";
+			port = 1972;
+		}
+
+		@Override
+		public void input(String text) {
+			try {
+				String split[] = text.split(":");
+				adress = split[0];
+				port = Integer.parseInt(split[1]);
+				nextState();
+			} catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+				AdressListener listener = new AdressListener();
+				Gdx.input.getTextInput(listener, "Bad buffer adress", text);
+			}
+		}
+	}
+
 	private enum States {
-		START, TRYING_TO_CONNECT, WAITING_FOR_HEADER, TRAINING_TEXT, TRAINING_CUE, TRAINING_GRID, FEEDBACK_TEXT, FEEDBACK_GRID, FEEDBACK_FEEDBACK, END, TRAINING_PAUSE, FEEDBACK_PAUSE, RETRYING_TO_CONNECT, LOST_CONNECTION
+		START, TRYING_TO_CONNECT, WAITING_FOR_HEADER, TRAINING_TEXT, TRAINING_CUE, TRAINING_GRID, FEEDBACK_TEXT, FEEDBACK_GRID, FEEDBACK_FEEDBACK, END, TRAINING_PAUSE, FEEDBACK_PAUSE, RETRYING_TO_CONNECT, LOST_CONNECTION, GET_ADRESS
 	}
 
 	private class Text {
@@ -115,6 +137,8 @@ public class VisSpeller extends ApplicationAdapter {
 	private int nSamples = 0;
 	private float fSample = 0;
 	private long lastUpdate = 0;
+	private String adress = null;
+	private int port = 1972;
 
 	private void bufferHeader() {
 		if (startOfState) {
@@ -143,7 +167,7 @@ public class VisSpeller extends ApplicationAdapter {
 		retryingText.draw();
 		if (TimeUtils.millis() - lastStateTime > TIME_RETRY_CLIENT) {
 			try {
-				ftc.connect("127.0.0.1", 1972);
+				ftc.connect(adress, port);
 				Header hdr = ftc.getHeader();
 				nSamples = hdr.nSamples;
 				fSample = hdr.fSample;
@@ -168,7 +192,7 @@ public class VisSpeller extends ApplicationAdapter {
 		tryConnectText.draw();
 		if (TimeUtils.millis() - lastStateTime > TIME_RETRY_CLIENT) {
 			try {
-				ftc.connect("127.0.0.1", 1972);
+				ftc.connect(adress, port);
 				Header hdr = ftc.getHeader();
 				nSamples = hdr.nSamples;
 				fSample = hdr.fSample;
@@ -427,6 +451,9 @@ public class VisSpeller extends ApplicationAdapter {
 
 		switch (state) {
 		case START:
+			changeState(States.GET_ADRESS);
+			break;
+		case GET_ADRESS:
 			changeState(States.TRYING_TO_CONNECT);
 			break;
 		case TRYING_TO_CONNECT:
@@ -519,6 +546,10 @@ public class VisSpeller extends ApplicationAdapter {
 			break;
 		case LOST_CONNECTION:
 			renderLostConnection();
+			break;
+		case GET_ADRESS:
+
+			renderGetAdress();
 			break;
 		default:
 			break;
@@ -615,6 +646,15 @@ public class VisSpeller extends ApplicationAdapter {
 
 		if (TimeUtils.millis() - lastStateTime > TIME_PAUSE) {
 			nextState();
+		}
+	}
+
+	private void renderGetAdress() {
+		if (startOfState) {
+			startOfState = false;
+			AdressListener listener = new AdressListener();
+			Gdx.input.getTextInput(listener, "Enter buffer adress",
+					"127.0.0.1:1972");
 		}
 	}
 
