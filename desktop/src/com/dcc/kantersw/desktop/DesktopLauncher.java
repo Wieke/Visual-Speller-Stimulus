@@ -5,13 +5,13 @@ import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import com.dcc.kantersw.VisSpeller;
 
 public class DesktopLauncher {
-	public static void main (String[] arg) {
-		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
+	public static void main(final String[] arg) {
+		final LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
 		config.title = "Visual Speller";
-		config.fullscreen = true;
+		config.fullscreen = false;
 		config.vSyncEnabled = true;
-		config.width = 1920;
-		config.height = 1080;
+		config.width = 1280;
+		config.height = 800;
 		new LwjglApplication(new VisSpeller(), config);
 	}
 }
